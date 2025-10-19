@@ -45,7 +45,8 @@ def predict():
         # Read image
         img = Image.open(file.stream).convert('RGB')
         img = img.resize((224, 224))  # adjust to your model’s input size
-        img = np.expand_dims(np.array(img, dtype=np.float32) / 255.0, axis=0)
+        img = np.expand_dims(np.array(img, dtype=np.uint8), axis=0)
+
 
         # Run inference
         interpreter.set_tensor(input_details[0]['index'], img)
