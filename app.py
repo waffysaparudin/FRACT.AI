@@ -8,7 +8,7 @@ app = Flask(__name__)
 
 # ===== Load your quantized TFLite model =====
 MODEL_PATH = "model.tflite"
-interpreter = tf.lite.Interpreter(model_path=MODEL_PATH)
+interpreter = tflite.Interpreter(model_path=MODEL_PATH)
 interpreter.allocate_tensors()
 
 input_details = interpreter.get_input_details()
