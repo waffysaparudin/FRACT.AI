@@ -1,7 +1,7 @@
 from flask import Flask, request, jsonify
 from PIL import Image
 import numpy as np
-import tensorflow as tf
+import tflite_runtime.interpreter as tflite
 import io, base64
 
 app = Flask(__name__)
