@@ -1,3 +1,27 @@
+import os
+import tensorflow as tf
+from flask import Flask, request, jsonify
+from PIL import Image
+import numpy as np
+
+app = Flask(__name__)
+
+# --- Safe path setup ---
+MODEL_PATH = os.path.join(os.path.dirname(__file__), "model.tflite")
+LABELS_PATH = os.path.join(os.path.dirname(__file__), "labels.txt")
+
+# --- Load model & labels ---
+interpreter = tf.lite.Interpreter(model_path=MODEL_PATH)
+interpreter.allocate_tensors()
+
+with open(LABELS_PATH, "r") as f:
+    labels = [line.strip() for line in f.readlines()]
+
+
+
+
+
+
 from flask import Flask, request, jsonify
 from PIL import Image
 import numpy as np
