@@ -42,6 +42,16 @@ def predict():
             return jsonify({'error': 'Empty filename'}), 400
         image = Image.open(file.stream)
 
+
+    # Case 1: JSON base64 input (from Thunkable)
+        if request.is_json:
+            data = request.get_json()
+            print("📦 JSON detected:", list(data.keys()))
+            if "file" not in data:
+                return jsonify({"error": "No file key in JSON"}), 400
+            base64_data = data["file"].split(",")[-1]
+            image = Image.open(io.BytesIO(base64.b64decode(base64_data)))
+
     # 2️⃣ Handle base64 uploads (if Thunkable sends data:image/... format)
     elif 'file' in request.form:
         print("⚠️ File not in request.files, trying base64 decode")
