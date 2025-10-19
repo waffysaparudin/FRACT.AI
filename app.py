@@ -1,72 +1,68 @@
 import os
-import tensorflow as tf
 from flask import Flask, request, jsonify
 from PIL import Image
 import numpy as np
+import io
 
+# Use tflite-runtime for lighter deployment
+try:
+    import tflite_runtime.interpreter as tflite
+except ImportError:
+    import tensorflow.lite as tflite
+
+# Create Flask app
 app = Flask(__name__)
 
-# --- Safe path setup ---
+# ---- Safe model and label paths ----
 MODEL_PATH = os.path.join(os.path.dirname(__file__), "model.tflite")
 LABELS_PATH = os.path.join(os.path.dirname(__file__), "labels.txt")
 
-# --- Load model & labels ---
-interpreter = tf.lite.Interpreter(model_path=MODEL_PATH)
+# ---- Load TFLite model ----
+interpreter = tflite.Interpreter(model_path=MODEL_PATH)
 interpreter.allocate_tensors()
-
-with open(LABELS_PATH, "r") as f:
-    labels = [line.strip() for line in f.readlines()]
-
-
-
-
-
-
-from flask import Flask, request, jsonify
-from PIL import Image
-import numpy as np
-import tensorflow as tf
-import io
-
-app = Flask(__name__)
-
-# Load TFLite model and allocate tensors
-interpreter = tf.lite.Interpreter(model_path="model.tflite")
-interpreter.allocate_tensors()
-
 input_details = interpreter.get_input_details()
 output_details = interpreter.get_output_details()
 
-# Load class labels
-with open("labels.txt", "r") as f:
-    labels = [line.strip() for line in f.readlines()]
+# ---- Load labels ----
+with open(LABELS_PATH, "r") as f:
+    labels = [line.strip().split(' ', 1)[-1] for line in f.readlines()]
 
-def preprocess(image):
-    image = image.resize((224, 224))
-    arr = np.array(image).astype(np.float32) / 255.0
-    arr = np.expand_dims(arr, axis=0)
-    return arr
+@app.route('/')
+def home():
+    return "✅ HKL Fract.AI API is running"
 
+# ---- Prediction endpoint ----
 @app.route('/predict', methods=['POST'])
 def predict():
     if 'file' not in request.files:
-        return jsonify({'error': 'no file uploaded'}), 400
-
+        return jsonify({'error': 'No file uploaded'}), 400
+    
     file = request.files['file']
-    image = Image.open(io.BytesIO(file.read())).convert("RGB")
-    input_data = preprocess(image)
+    if file.filename == '':
+        return jsonify({'error': 'Empty filename'}), 400
 
-    # Set input tensor
-    interpreter.set_tensor(input_details[0]['index'], input_data)
-    interpreter.invoke()
+    try:
+        # Read image
+        img = Image.open(file.stream).convert('RGB')
+        img = img.resize((224, 224))  # adjust to your model’s input size
+        img = np.expand_dims(np.array(img, dtype=np.float32) / 255.0, axis=0)
 
-    # Get prediction result
-    output_data = interpreter.get_tensor(output_details[0]['index'])
-    idx = int(np.argmax(output_data))
-    confidence = float(np.max(output_data))
-    result = labels[idx]
+        # Run inference
+        interpreter.set_tensor(input_details[0]['index'], img)
+        interpreter.invoke()
+        output_data = interpreter.get_tensor(output_details[0]['index'])
 
-    return jsonify({'prediction': result, 'confidence': confidence})
+        # Process results
+        predicted_index = int(np.argmax(output_data))
+        confidence = float(np.max(output_data))
+        label = labels[predicted_index]
+
+        return jsonify({
+            'prediction': label,
+            'confidence': confidence
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000)
+    app.run(host='0.0.0.0', port=10000)
